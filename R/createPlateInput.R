@@ -1,6 +1,6 @@
-#' Create an inventory of plate-reader CSV files.
+#' Create an inventory of plate-reader CSV and TXT files.
 #'
-#' @param dirpath A directory containing raw plate-reader CSV files.
+#' @param dirpath A directory containing raw plate-reader CSV or TXT files.
 #' @param savepath Optional output directory. Defaults to `dirpath`.
 #'
 #' @return The normalized path to the written `plateInput.csv`, returned
@@ -36,7 +36,7 @@ createPlateInput <- function(dirpath, savepath = NULL) {
 	output_file <- normalizePath(file.path(output_dir, "plateInput.csv"),
 															 mustWork = FALSE)
 
-	discovered <- list.files(input_dir, pattern = "\\.csv$", full.names = TRUE,
+	discovered <- list.files(input_dir, pattern = "\\.(csv|txt)$", full.names = TRUE,
 													 recursive = TRUE, ignore.case = TRUE,
 													 include.dirs = FALSE)
 	discovered <- discovered[!grepl("^\\.|^~\\$", basename(discovered))]
@@ -49,7 +49,7 @@ createPlateInput <- function(dirpath, savepath = NULL) {
 
 	unreadable <- discovered[file.access(discovered, mode = 4) != 0]
 	if (length(unreadable) > 0L) {
-		warning(sprintf("Excluding %d unreadable CSV file%s: %s",
+		warning(sprintf("Excluding %d unreadable CSV or TXT file%s: %s",
 										length(unreadable),
 										if (length(unreadable) == 1L) "" else "s",
 										paste(unreadable, collapse = ", ")),
@@ -58,7 +58,7 @@ createPlateInput <- function(dirpath, savepath = NULL) {
 	}
 
 	if (length(discovered) == 0L) {
-		stop(sprintf("No readable CSV files were found under `dirpath`: %s",
+		stop(sprintf("No readable CSV or TXT files were found under `dirpath`: %s",
 								 input_dir), call. = FALSE)
 	}
 
@@ -66,7 +66,7 @@ createPlateInput <- function(dirpath, savepath = NULL) {
 	inventory <- data.frame(
 		filename = basename(discovered),
 		filepath = discovered,
-		sample_name = sub("\\.csv$", "", basename(discovered),
+		sample_name = sub("\\.(csv|txt)$", "", basename(discovered),
 		                   ignore.case = TRUE),
 		stringsAsFactors = FALSE
 	)

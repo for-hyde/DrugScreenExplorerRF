@@ -2,12 +2,12 @@
 % Please edit documentation in R/createPlateInput.R
 \name{createPlateInput}
 \alias{createPlateInput}
-\title{Create an inventory of plate-reader CSV files.}
+\title{Create an inventory of plate-reader CSV and TXT files.}
 \usage{
 createPlateInput(dirpath, savepath = NULL)
 }
 \arguments{
-\item{dirpath}{A directory containing raw plate-reader CSV files.}
+\item{dirpath}{A directory containing raw plate-reader CSV or TXT files.}
 
 \item{savepath}{Optional output directory. Defaults to \code{dirpath}.}
 }
@@ -16,5 +16,5 @@ The normalized path to the written \code{plateInput.csv}, returned
 invisibly.
 }
 \description{
-Create an inventory of plate-reader CSV files.
+Create an inventory of plate-reader CSV and TXT files.
 }

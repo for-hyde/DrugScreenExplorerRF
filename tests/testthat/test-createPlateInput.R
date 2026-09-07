@@ -9,13 +9,13 @@ test_that("createPlateInput inventories CSV files recursively", {
   nested_dir <- file.path(input_dir, "nested")
   dir.create(nested_dir)
   writeLines("not a valid plate file", file.path(input_dir, "z.csv"))
-  writeLines("also not parsed", file.path(nested_dir, "a.CSV"))
+  writeLines("also not parsed", file.path(nested_dir, "a.TXT"))
 
   output_file <- createPlateInput(input_dir)
   inventory <- read.csv(output_file, stringsAsFactors = FALSE)
 
   expect_identical(names(inventory), c("filename", "filepath", "sample_name"))
-  expect_identical(inventory$filename, c("a.CSV", "z.csv"))
+  expect_identical(inventory$filename, c("a.TXT", "z.csv"))
   expect_identical(inventory$sample_name, c("a", "z"))
   expect_true(all(file.exists(inventory$filepath)))
   expect_identical(output_file, normalizePath(file.path(input_dir, "plateInput.csv")))
@@ -73,8 +73,8 @@ test_that("createPlateInput rejects invalid directories and empty inputs", {
   )
 
   input_dir <- new_test_directory()
-  writeLines("text", file.path(input_dir, "notes.txt"))
-  expect_error(createPlateInput(input_dir), "No readable CSV files")
+  writeLines("text", file.path(input_dir, "notes.rtf"))
+  expect_error(createPlateInput(input_dir), "No readable CSV or TXT files")
 
   output_dir <- new_test_directory()
   expect_error(
