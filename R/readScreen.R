@@ -18,7 +18,8 @@
 readScreen <- function(wellInputFile, plateInputFile, negWell = NULL,
                        posWell = NULL, rowRange = NULL, sep = ",",
                        tablePattern = NULL) {
-	validate_file <- function(path, argument) {
+	#Functions to validate input files and read CSV files with error handling.
+    validate_file <- function(path, argument) {
 		if (!is.character(path) || length(path) != 1L || is.na(path) ||
 				!nzchar(path)) {
 			stop(sprintf("`%s` must be a single non-empty character path.", argument),
@@ -34,7 +35,6 @@ readScreen <- function(wellInputFile, plateInputFile, negWell = NULL,
 		}
 		normalizePath(path, mustWork = TRUE)
 	}
-
 	read_csv <- function(path, argument) {
 		tryCatch(
 			utils::read.csv(path, stringsAsFactors = FALSE, check.names = FALSE),
@@ -44,17 +44,20 @@ readScreen <- function(wellInputFile, plateInputFile, negWell = NULL,
 			}
 		)
 	}
-
+    # Validate and read the input files.
 	well_path <- validate_file(wellInputFile, "wellInputFile")
 	plate_path <- validate_file(plateInputFile, "plateInputFile")
 	well_input <- read_csv(well_path, "wellInputFile")
 	plate_input <- read_csv(plate_path, "plateInputFile")
-
+    
+    #Ensure that the input files contain the required columns and valid data.
 	required_well_columns <- c(
 		"WellID", "Drug1_name", "Drug1_concentration", "Drug2_name",
 		"Drug2_concentration"
 	)
 	missing_well_columns <- setdiff(required_well_columns, names(well_input))
+
+    #If any required columns are missing from the well input file, stop with an error.
 	if (length(missing_well_columns) > 0L) {
 		stop(sprintf("`wellInputFile` is missing required columns: %s",
 					 paste(missing_well_columns, collapse = ", ")), call. = FALSE)
@@ -74,6 +77,8 @@ readScreen <- function(wellInputFile, plateInputFile, negWell = NULL,
 		stop("`wellInputFile` must contain unique, non-empty `WellID` values.",
 			 call. = FALSE)
 	}
+
+    #Esnures that the well IDs are in the correct format and that the plate layout is complete and rectangular.
 	well_parts <- regexec("^([A-Z])([0-9]+)$", well_ids)
 	well_matches <- regmatches(well_ids, well_parts)
 	if (any(lengths(well_matches) != 3L)) {
@@ -133,7 +138,8 @@ readScreen <- function(wellInputFile, plateInputFile, negWell = NULL,
 	}
 	negWell <- validate_controls(negWell, "negWell")
 	posWell <- validate_controls(posWell, "posWell")
-	if (!is.null(negWell) && !is.null(posWell) &&
+	#Ensure that the negative and positive control names do not overlap.
+    if (!is.null(negWell) && !is.null(posWell) &&
 			any(intersect(negWell, posWell))) {
 		stop("`negWell` and `posWell` contain overlapping control names.",
 			 call. = FALSE)
