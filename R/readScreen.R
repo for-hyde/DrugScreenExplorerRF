@@ -144,7 +144,7 @@ readScreen <- function(wellInputFile, plateInputFile, negWell = NULL,
 		stop("`negWell` and `posWell` contain overlapping control names.",
 			 call. = FALSE)
 	}
-
+    
 	parse_fields <- function(line) {
 		fields <- trimws(strsplit(line, split = sep, fixed = TRUE)[[1L]])
 		while (length(fields) > 0L && !nzchar(fields[length(fields)])) {
