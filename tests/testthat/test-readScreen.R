@@ -54,11 +54,12 @@ test_that("readScreen extracts the numeric table and joins well metadata", {
                        negWell = "NEG", posWell = "POS")
 
   expect_identical(names(result), c(
-    "wellID", "experimentID", "raw_count", "drug1_name",
+    "wellID", "experimentID", "plateID", "raw_count", "drug1_name",
     "drug1_concentration", "drug2_name", "drug2_concentration", "control"
   ))
   expect_identical(result$wellID, paste0(rep(LETTERS[1:2], each = 3),
                                          sprintf("%03d", rep(1:3, times = 2))))
+  expect_identical(result$plateID, rep("sample1.csv", 6))
   expect_identical(result$raw_count, c(1, 2, 3, 4, 5, 6))
   expect_identical(result$experimentID, rep("sample1", 6))
   expect_identical(result$control[1:2], c("neg", "pos"))
@@ -74,6 +75,8 @@ test_that("readScreen combines files in plateInput order", {
   expect_identical(nrow(result), 12L)
   expect_identical(result$experimentID, rep(c("sample1", "sample2"),
                                             each = 6))
+  expect_identical(result$plateID, rep(c("sample1.csv", "sample2.csv"),
+                                        each = 6))
   expect_identical(result$raw_count, rep(c(1, 2, 3, 4, 5, 6), times = 2))
 })
 

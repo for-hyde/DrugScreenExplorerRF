@@ -11,7 +11,7 @@
 #' @return A data frame with a new `viab_norm` column appended.
 #' @export
 normalizePlate <- function(screenData = NULL, method = NULL, posWell = NULL,
-                          negWell = NULL, by = "plate") {
+                          negWell = NULL, by = "experiment") {
 
     ### Validate inputs and prepare data for normalization.
     if (is.null(screenData)) {
@@ -21,7 +21,7 @@ normalizePlate <- function(screenData = NULL, method = NULL, posWell = NULL,
         stop("`screenData` must be a data frame or tibble.", call. = FALSE)
     }
 
-    missing_columns <- setdiff(c("experimentID", "plateID", "WellID", "raw_count", "drug1_name"), names(screenData))
+    missing_columns <- setdiff(c("experimentID", "plateID", "wellID", "raw_count", "drug1_name"), names(screenData))
     if (length(missing_columns) > 0L) {
         stop(
             paste0("`screenData` is missing required columns: ", paste(missing_columns, collapse = ", ")),
@@ -117,8 +117,8 @@ normalizePlate <- function(screenData = NULL, method = NULL, posWell = NULL,
     }
 
     out <- out %>%
-        group_by(across(all_of(grouping_cols))) %>%
-        mutate(
+        dplyr::group_by(across(all_of(grouping_cols))) %>%
+        dplyr::mutate(
             med_neg = median(raw_count[control == "neg"], na.rm = TRUE),
             med_pos = if (method == "npi") {
                 median(raw_count[control == "pos"], na.rm = TRUE)
@@ -131,8 +131,8 @@ normalizePlate <- function(screenData = NULL, method = NULL, posWell = NULL,
                 raw_count / med_neg
             }
         ) %>%
-        select(-c(med_neg, med_pos)) %>%
-        ungroup()
+        dplyr::select(-c(med_neg, med_pos)) %>%
+        dplyr::ungroup()
 
     return(out)
 }

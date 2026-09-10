@@ -144,7 +144,7 @@ readScreen <- function(wellInputFile, plateInputFile, negWell = NULL,
 		stop("`negWell` and `posWell` contain overlapping control names.",
 			 call. = FALSE)
 	}
-    
+
 	parse_fields <- function(line) {
 		fields <- trimws(strsplit(line, split = sep, fixed = TRUE)[[1L]])
 		while (length(fields) > 0L && !nzchar(fields[length(fields)])) {
@@ -171,7 +171,7 @@ readScreen <- function(wellInputFile, plateInputFile, negWell = NULL,
 		all(valid_missing | !is.na(numeric_values))
 	}
 
-	extract_table <- function(path, experiment_id) {
+	extract_table <- function(path, experiment_id, plate_id) {
 		lines <- tryCatch(
 			readLines(path, encoding = "UTF-8", warn = FALSE),
 			error = function(error) {
@@ -259,6 +259,7 @@ readScreen <- function(wellInputFile, plateInputFile, negWell = NULL,
 		data.frame(
 			wellID = well_ids,
 			experimentID = rep(experiment_id, length(well_ids)),
+			plateID = rep(plate_id, length(well_ids)),
 			raw_count = measurements,
 			stringsAsFactors = FALSE
 		)
@@ -272,26 +273,38 @@ readScreen <- function(wellInputFile, plateInputFile, negWell = NULL,
 		stop("`plateInputFile` contains missing or empty `sample_name` values.",
 			 call. = FALSE)
 	}
+	if ("filename" %in% names(plate_input)) {
+		plate_input$plateID <- as.character(plate_input$filename)
+	} else {
+		plate_input$plateID <- as.character(plate_input$sample_name)
+	}
+	if (anyNA(plate_input$plateID) || any(!nzchar(plate_input$plateID))) {
+		stop("`plateInputFile` contains missing or empty `plateID` values.",
+				 call. = FALSE)
+	}
 	plate_directory <- dirname(plate_path)
 	results <- vector("list", nrow(plate_input))
 	for (index in seq_len(nrow(plate_input))) {
 		raw_path <- as.character(plate_input$filepath[index])
-		if (!grepl("^(/|[A-Za-z]:[/\\\\])", raw_path)) {
+		if (!grepl("^(/|[A-Za-z]:[/\\])", raw_path)) {
 			raw_path <- file.path(plate_directory, raw_path)
 		}
 		raw_path <- validate_file(raw_path, "plateInputFile filepath")
-		results[[index]] <- extract_table(raw_path,
-										  as.character(plate_input$sample_name[index]))
+		results[[index]] <- extract_table(
+			raw_path,
+			as.character(plate_input$sample_name[index]),
+			as.character(plate_input$plateID[index])
+		)
 	}
 
 	screen_data <- do.call(rbind, results)
 	screen_data <- cbind(
-		screen_data[c("wellID", "experimentID", "raw_count")],
+		screen_data[c("wellID", "experimentID", "plateID", "raw_count")],
 		well_input[match(screen_data$wellID, well_ids),
 			c("Drug1_name", "Drug1_concentration", "Drug2_name",
 			  "Drug2_concentration"), drop = FALSE]
 	)
-	names(screen_data) <- c("wellID", "experimentID", "raw_count",
+	names(screen_data) <- c("wellID", "experimentID", "plateID", "raw_count",
 							"drug1_name", "drug1_concentration", "drug2_name",
 							"drug2_concentration")
 	if (!is.null(negWell) || !is.null(posWell)) {
