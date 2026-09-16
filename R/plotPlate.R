@@ -1,3 +1,6 @@
+#' @importFrom ggplot2 ggplot aes geom_tile scale_y_discrete xlab ylab
+#' @importFrom ggplot2 theme_void ggtitle theme element_text element_blank margin
+
 plotPlate <- function(
         screenData,
         plate = "all",
@@ -26,7 +29,7 @@ plotPlate <- function(
     if (plotType == "layout" && !("control" %in% names(screenData))) {
         stop("`screenData` must contain a `control` column when `plotType` is 'layout'.", call. = FALSE)
     }
-    if (plotType == "zscore" && !("viab.norm" %in% names(screenData))) {
+    if (plotType == "zscore" && !("viab_norm" %in% names(screenData))) {
         stop("`screenData` must contain a `viab.norm` column when `plotType` is 'zscore'.", call. = FALSE)
     }
     #If not a null path, 
@@ -43,37 +46,31 @@ plotPlate <- function(
 
     plotlist <- list()
 
-    # Generate plots
-    for (plate_id in plates_to_plot) {
-        plate <- screenData[screenData$experimentID == plate_id, ]
-        # Separate well info to plot plate
-        ids <- parse_well_ids(plate$wellID)
-        
-        # Create a new data frame with the parsed well IDs and the original data
-        plate$Row <- ids$x
-        plate$Column <- ids$y
+    #Create Well ID info
+    ids <- parse_well_ids(screenData$wellID)
+    screenData <- screenData %>%
+        dplyr::mutate(
+            Row = ids$x,
+            Column = ids$y
+        )
 
-        #Extract relevant coloring data
-        if (plotType == "viability") {
-            color_data <- plate$raw_count
-            color_label <- "Raw Viability" #Working, consider adding normalization option
-        #Write normalization, then try z-scre
-        } else if (plotType == "zscore") {
-            color_data <- calculate_zscore(plate)
-            color_label <- "Z-score"
-        } else if (plotType == "layout") {
-            color_data <- plate$control
-            color_label <- "Control Type" #Working, consider adding color scheme for controls.
-        } else if (plotType == "edgeEffect") {
-            color_data <- estimate_edge_effect(plate$raw_data) #Should I use the raw or normalized data here?
-            color_label <- "Edge Effect"
-        }
-        # Add the color data to the plate data frame
-        plate$ColorData <- color_data
+    #Slit into plates
+    plates <- screenData %>%
+        dplyr::filter(experimentID %in% plates_to_plot) %>%
+        dplyr::group_split(experimentID)
 
-        # Create the plot object
+    plotlist <- vector("list", length(plates))
+
+    for (i in seq_along(plates)){
+        plate <- plates[[i]]
+        plate_id <- unique(plate$experimentID)
+
+        # Call helper function and attach the computed color data to the plate data
+        color <- get_color_data(plate, plotType)
+        plate$ColorData <- color$data
+
         p <- ggplot(plate, aes(x = Column, y = Row, fill = ColorData)) +
-            geom_tile(color = "grey80") + 
+            geom_tile(color = "grey80") +
             scale_y_discrete(limits = rev(levels(factor(plate$Row)))) + #Ensure A sits at top, may replace.
             xlab("")  + ylab("") +
             theme_void() +
@@ -83,21 +80,10 @@ plotPlate <- function(
                   plot.title = element_text(hjust = 0.5, size = 10),
                   plot.margin = margin(5, 5, 5, 5))
 
-        plotlist <- c(plotlist, list(p))
+        plotlist[[i]] <- p
 
+    
     }
-    # If outputPath is provided, save the plot to a file
-    if (!is.null(outputPath)) {
-        ggsave(filename = file.path(outputPath, paste0("plate_", plate_id, "_", plotType, ".png")),
-               plot = p, width = width, height = height, units = "cm")
-    }
-    #This part is wrong...
-    if (returnObject) {
-        return(plotlist)
-    } else {
-        return(plotlist)
-    }
-
-
+    return (plotlist)
 }
 
