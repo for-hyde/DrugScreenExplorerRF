@@ -16,5 +16,6 @@ URL: https://github.com/for-hyde/DrugScreenExplorerRF
 BugReports: https://github.com/for-hyde/DrugScreenExplorerRF/issues
 Imports: 
     dplyr,
+    DT,
     ggplot2,
     shiny

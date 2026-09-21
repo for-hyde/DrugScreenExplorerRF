@@ -6,12 +6,15 @@ buildApp <- function(){
     inverse = TRUE,
     id = "tabs",
 
-
+    shiny::tabPanel(
+      "Data preprocessing",
+      mod_data_preprocessing_ui("preprocessing_1")
+    )
   )
 
   #Define server
   server <- function(input, output, session){
-    mod_data_preprocessing("preprocessing_1")
+    mod_data_preprocessing_server("preprocessing_1")
   }
 
 

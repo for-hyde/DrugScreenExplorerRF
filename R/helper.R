@@ -3,7 +3,7 @@ parse_well_ids <- function(well_ids) {
     if (!is.character(well_ids)) {
         stop("`well_ids` must be a character vector.", call. = FALSE)
     }
-    #Seems inefficient. Keep for now. 
+    #Seems inefficient. Keep for now.
     rows <- c()
     columns <- c()
     for (well in well_ids) {
@@ -28,7 +28,7 @@ calculate_zscore <- function(plate) {
     return(z_score)
 }
 
-#Function to determining which colors to run in 
+#Function to determining which colors to run in
 get_color_data <- function(plate, plotType){
     switch(
         plotType,
@@ -140,4 +140,60 @@ estimate_edge_effect <- function(plate, method = "loess", span = 1) {
         stop("`method` must be one of `\"loess\"` or `\"sigmoid\"`.",
              call. = FALSE)
     }
+}
+
+# Used by the Shiny preprocessing module.
+load_from_zip <- function(zippath,
+                                                    wellfilename = "wellInput.csv",
+                                                    platefilename = "plateInput.csv") {
+    if (!is.character(zippath) || length(zippath) != 1L || is.na(zippath) ||
+            !file.exists(zippath) || dir.exists(zippath)) {
+        stop("`zippath` must identify one existing ZIP file.", call. = FALSE)
+    }
+    temp_dir <- tempfile("screen-zip-")
+    dir.create(temp_dir)
+    on.exit(unlink(temp_dir, recursive = TRUE), add = TRUE)
+    utils::unzip(zippath, exdir = temp_dir)
+    extracted_files <- list.files(temp_dir, full.names = TRUE, recursive = TRUE)
+
+    find_one <- function(filename, label) {
+        matches <- extracted_files[
+            tolower(basename(extracted_files)) == tolower(filename)
+        ]
+        if (length(matches) != 1L) {
+            stop(sprintf("Expected exactly one %s in the ZIP archive; found %d.",
+                                     label, length(matches)), call. = FALSE)
+        }
+        matches
+    }
+    well_path <- find_one(wellfilename, "well metadata file")
+    plate_path <- find_one(platefilename, "plate metadata file")
+    plate_input <- utils::read.csv(
+        plate_path,
+        stringsAsFactors = FALSE,
+        check.names = FALSE
+    )
+    if (!all(c("filepath", "sample_name") %in% names(plate_input))) {
+        stop("The archived plate metadata file must contain `filepath` and `sample_name`.",
+                 call. = FALSE)
+    }
+
+    resolve_raw_file <- function(path) {
+        matches <- extracted_files[
+            basename(extracted_files) == basename(as.character(path))
+        ]
+        if (length(matches) != 1L) {
+            stop(sprintf("Expected exactly one archived raw file for `%s`; found %d.",
+                                     path, length(matches)), call. = FALSE)
+        }
+        matches
+    }
+    plate_input$filepath <- vapply(
+        plate_input$filepath,
+        resolve_raw_file,
+        character(1)
+    )
+    rewritten_plate <- file.path(temp_dir, "plateInput-resolved.csv")
+    utils::write.csv(plate_input, rewritten_plate, row.names = FALSE)
+    readScreen(wellInputFile = well_path, plateInputFile = rewritten_plate)
 }
