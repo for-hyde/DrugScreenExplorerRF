@@ -144,6 +144,7 @@ estimate_edge_effect <- function(plate, method = "loess", span = 1) {
 
 # Used by the Shiny preprocessing module.
 load_from_zip <- function(zippath,
+                                                    separator = ",",
                                                     wellfilename = "wellInput.csv",
                                                     platefilename = "plateInput.csv") {
     if (!is.character(zippath) || length(zippath) != 1L || is.na(zippath) ||
@@ -196,4 +197,62 @@ load_from_zip <- function(zippath,
     rewritten_plate <- file.path(temp_dir, "plateInput-resolved.csv")
     utils::write.csv(plate_input, rewritten_plate, row.names = FALSE)
     readScreen(wellInputFile = well_path, plateInputFile = rewritten_plate)
+}
+
+#' Parse a delimited file with optional row and column ranges
+#' called by readScreen when provided exact location to extract.
+#' 
+#' @param file_path Path to the CSV/TSV file.
+#' @param sep Separator character (e.g., ",", "\t", ";").
+#' @param row_range Character string representing row indices (e.g., "1:12").
+#' @param col_range Character string representing column range (e.g., "A:H" or "1:5").
+#' @return A subsetted data frame.
+manual_parse <- function(file_path, sep = ",", row_range = NULL, col_range = NULL) {
+  
+  # 1. Read the full file raw (no headers assumed initially to preserve exact coordinate mapping)
+  df <- utils::read.table(
+    file_path, 
+    sep = sep, 
+    header = FALSE, 
+    stringsAsFactors = FALSE, 
+    fill = TRUE,
+    quote = ""
+  )
+  
+  # 2. Apply row range if provided and not empty
+  if (!is.null(row_range) && nzchar(row_range)) {
+    # Safely evaluate string like "1:12" into a numeric vector 1:12
+    rows <- suppressWarnings(tryCatch(eval(parse(text = row_range)), error = function(e) NULL))
+    if (!is.null(rows) && is.numeric(rows)) {
+      # Ensure indices don't exceed actual rows in the file
+      rows <- rows[rows <= nrow(df) & rows > 0]
+      df <- df[rows, , drop = FALSE]
+    }
+  }
+  
+  # 3. Apply column range if provided and not empty
+  if (!is.null(col_range) && nzchar(col_range)) {
+    cols <- NULL
+    
+    # Check if user entered Excel-style letters (e.g., "A:H" or "a:h")
+    if (grepl("^[A-Za-z]+:[A-Za-z]+$", col_range)) {
+      parts <- strsplit(toupper(col_range), ":")[[1]]
+      # Simple letter-to-index conversion (A=1, B=2, ..., Z=26)
+      col_start <- match(parts[1], LETTERS)
+      col_end <- match(parts[2], LETTERS)
+      if (!is.na(col_start) && !is.na(col_end)) {
+        cols <- col_start:col_end
+      }
+    } else {
+      # Otherwise assume a numeric range string like "1:5"
+      cols <- suppressWarnings(tryCatch(eval(parse(text = col_range)), error = function(e) NULL))
+    }
+    
+    if (!is.null(cols) && is.numeric(cols)) {
+      cols <- cols[cols <= ncol(df) & cols > 0]
+      df <- df[, cols, drop = FALSE]
+    }
+  }
+  
+  return(df)
 }

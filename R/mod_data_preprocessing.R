@@ -11,42 +11,66 @@ mod_data_preprocessing_ui <- function(id) {
 		shiny::sidebarLayout(
 			shiny::sidebarPanel(
 				width = 4,
-				shiny::fileInput(
-					ns("wellfile"),
-					"Select well metadata file",
-					accept = c(".csv", ".txt", ".tsv")
-				),
-				shiny::fileInput(
-					ns("platefile"),
-					"Select plate metadata file",
-					accept = c(".csv", ".txt", ".tsv")
-				),
-				shiny::fileInput(
-					ns("zipfile"),
-					"(Optional) standard-format ZIP file",
-					accept = ".zip"
-				),
-				shiny::selectInput(
-					ns("separator"),
-					"CSV separator",
-					choices = c(
-						"comma" = ",",
-						"semicolon" = ";",
-						"tab" = "\t"
+				shiny::tags$div(
+                   	style = "border: 1px solid #ddd; padding: 10px; margin-bottom: 10px;",
+                    shiny::tags$h3(shiny::tags$b("1 File Import"), style = "background-color: lightgray; padding: 10px;"),
+					#UX decision to allow user to select upload method
+					shiny::radioButtons(
+						ns("import_method"),
+						"Select import method",
+						choices = c(
+							"Import from ZIP file" = "zip",
+							"Import from individual files" = "files"
+						),
+						selected = "files"
 					),
-					selected = ","
+					#Update based on radio button selection
+					shiny::uiOutput(ns("dynamic_inputs")),
+					shiny::uiOutput(ns("dynamic_separator")),
+					shiny::actionButton(ns("import"), "Import data"),
+
+					#Check boxes for advanced options
+					shiny::checkboxInput(
+						ns("advanced_options"),
+						"Advanced Loading Options",
+						value = FALSE
+					),
+					shiny::uiOutput(ns("advanced_options_ui")),
 				),
-				shiny::actionButton(ns("import"), "Import data")
+				#Normalization
+				shiny::tags$div(
+					style = "border: 1px solid #ddd; padding: 10px; margin-bottom: 10px;",
+                    shiny::tags$h3(shiny::tags$b("2 Normalization"), style = "background-color: lightgray; padding: 10px;"),
+
+					shiny::selectInput(
+						ns("normalization_method"),
+						"Normalization method",
+						choices = c(
+							"NPI" = "npi",
+							"Negative control" = "negative"
+						),
+						selected = "none"
+					),
+					shiny::selectInput(
+						ns("positive_wells"),
+						"Positive control wells",
+						choices = c(
+							"None" = "none",
+							"POS" = "POS"
+						)
+					),
+
+				)
 			),
-		
+
 			shiny::mainPanel(
 				width = 8,
-				shiny::textOutput(ns("status")),
+				#shiny::textOutput(ns("status")),
 				shiny::textOutput(ns("error_message")),
 				shiny::br(),
 				DT::DTOutput(ns("data_table"))
 			)
-	)
+		)
 )}
 
 #' Data-preprocessing module server.
@@ -62,6 +86,79 @@ mod_data_preprocessing_server <- function(id) {
 		data_value <- shiny::reactiveVal(NULL)
 		status_value <- shiny::reactiveVal("empty")
 		error_value <- shiny::reactiveVal(NULL)
+
+		# Dynamically render file input UI based on the selected import method
+		output$dynamic_inputs <- shiny::renderUI({
+			if (input$import_method == "zip") {
+				shiny::fileInput(
+					session$ns("zipfile"),
+					"Select ZIP file",
+					accept = ".zip"
+				)
+			} else {
+				shiny::tagList(
+					shiny::fileInput(
+						session$ns("wellfile"),
+						"Select well metadata file",
+						accept = c(".csv", ".txt", ".tsv")
+					),
+					shiny::fileInput(
+						session$ns("platefile"),
+						"Select plate metadata file",
+						accept = c(".csv", ".txt", ".tsv")
+					)
+				)
+			}
+		})
+
+		# Render the separator input only when individual files are selected
+		output$dynamic_separator <- shiny::renderUI({
+			if (!is.null(input$wellfile) && nrow(input$wellfile) > 0L && !is.null(input$platefile) && nrow(input$platefile) > 0L) {
+				shiny::textInput(
+					session$ns("separator"),
+					"Select file separator (for individual files)",
+					value = ","
+				)
+			}
+		})
+
+		# Dynamically render advanced options UI based on the checkbox
+		output$advanced_options_ui <- shiny::renderUI({
+			if (input$advanced_options) {
+				shiny::tagList(
+					shiny::textInput(
+						session$ns("row_range"),
+						"Select row range for table in the raw data file(s) (e.g., 1:12)",
+						value = ""
+					),
+					shiny::textInput(
+						session$ns("col_range"),
+						"Select column range for table in the raw data file(s) (e.g., A:Z) or numeric range (e.g., 1:24)",
+						value = ""
+					)
+				)
+			}
+		})
+
+		#When the import button is clicked, load the data based on the selected method
+		shiny::observeEvent(input$import, {
+			#If rows and columns are specified, parse them into numeric ranges
+			row_selection <- if (isTRUE(input$advanced_options) && nzchar(input$row_range)) {
+				tryCatch(eval(parse(text = input$row_range)), error = function(e) NULL)
+			} else {
+				NULL
+			}
+			col_selection <- if (isTRUE(input$advanced_options) && nzchar(input$col_range)) {
+				tryCatch(eval(parse(text = input$col_range)), error = function(e) NULL)
+			} else {
+				NULL
+			}	
+
+			#If using .zip file, call load_from_zip, otherwise call readScreen
+			
+
+
+		})
 
 		shiny::observeEvent(input$import, {
 			#Ensure User has only selected either the zip file or the individual files, not both

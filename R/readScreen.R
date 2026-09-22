@@ -8,6 +8,8 @@
 #'   names.
 #' @param rowRange Optional integer vector `c(first_row, last_row)` specifying
 #'   the inclusive lines containing the measurement table.
+#' @param colRange Optional integer vector `c(first_column, last_column)` specifying
+#'   the inclusive columns containing the measurement table.
 #' @param sep Field separator used by the raw plate-reader files. Defaults to
 #'   `","`.
 #' @param tablePattern Optional regular expression identifying measurement-table
@@ -16,7 +18,7 @@
 #' @return A data frame containing one row per well per raw plate-reader file.
 #' @export
 readScreen <- function(wellInputFile, plateInputFile, negWell = NULL,
-                       posWell = NULL, rowRange = NULL, sep = ",",
+                       posWell = NULL, rowRange = NULL, colRange = NULL, sep = ",",
                        tablePattern = NULL) {
 	#Functions to validate input files and read CSV files with error handling.
     validate_file <- function(path, argument) {
@@ -78,7 +80,7 @@ readScreen <- function(wellInputFile, plateInputFile, negWell = NULL,
 			 call. = FALSE)
 	}
 
-    #Esnures that the well IDs are in the correct format and that the plate layout is complete and rectangular.
+    #Ensures that the well IDs are in the correct format and that the plate layout is complete and rectangular.
 	well_parts <- regexec("^([A-Z])([0-9]+)$", well_ids)
 	well_matches <- regmatches(well_ids, well_parts)
 	if (any(lengths(well_matches) != 3L)) {
@@ -114,15 +116,7 @@ readScreen <- function(wellInputFile, plateInputFile, negWell = NULL,
 	if (!is.character(sep) || length(sep) != 1L || is.na(sep) || !nzchar(sep)) {
 		stop("`sep` must be a single non-empty character string.", call. = FALSE)
 	}
-	if (!is.null(rowRange)) {
-		if (!is.numeric(rowRange) || length(rowRange) != 2L ||
-				anyNA(rowRange) || any(!is.finite(rowRange)) ||
-				any(rowRange != as.integer(rowRange)) || rowRange[1L] < 1L ||
-				rowRange[1L] > rowRange[2L]) {
-			stop("`rowRange` must be two increasing positive integer line numbers.",
-				 call. = FALSE)
-		}
-	}
+
 	if (!is.null(tablePattern) && (!is.character(tablePattern) ||
 			length(tablePattern) != 1L || is.na(tablePattern) ||
 			!nzchar(tablePattern))) {
@@ -282,19 +276,50 @@ readScreen <- function(wellInputFile, plateInputFile, negWell = NULL,
 		stop("`plateInputFile` contains missing or empty `plateID` values.",
 				 call. = FALSE)
 	}
+
+	#Ensure proper formatting on the rowRange and colRange arguments, if provided.
+	if (!is.null(rowRange)) {
+		if (!is.numeric(rowRange) || length(rowRange) != 2L ||
+				anyNA(rowRange) || any(!is.finite(rowRange)) ||
+				any(rowRange != as.integer(rowRange)) || rowRange[1L] < 1L ||
+				rowRange[1L] > rowRange[2L]) {
+			stop("`rowRange` must be two increasing positive integer line numbers.",
+				 call. = FALSE)
+		}
+	}
+	if (!is.null(colRange)) {
+		if (!is.numeric(colRange) || length(colRange) != 2L ||
+				anyNA(colRange) || any(!is.finite(colRange)) ||
+				any(colRange != as.integer(colRange)) || colRange[1L] < 1L ||
+				colRange[1L] > colRange[2L]) {
+			stop("`colRange` must be two increasing positive integer column numbers.",
+				 call. = FALSE)
+		}
+	}
+
 	plate_directory <- dirname(plate_path)
 	results <- vector("list", nrow(plate_input))
-	for (index in seq_len(nrow(plate_input))) {
-		raw_path <- as.character(plate_input$filepath[index])
-		if (!grepl("^(/|[A-Za-z]:[/\\])", raw_path)) {
-			raw_path <- file.path(plate_directory, raw_path)
+	#If provided, parse parse the files at those ranges, otherwise use the tablePattern to find the measurement tables.
+	if (!is.null(rowRange) || !is.null(colRange)) {
+		for (index in seq_len(nrow(plate_input))) {
+			raw_path <- as.character(plate_input$filepath[index])
+			results[[index]] <- manual_parse(
+				file_path = raw_path,
+				cols = colRange, rows = rowRange, sep = sep
+			)
+		}			
+	} else {#If not selected, automatically find the measurement tables in the files using the tablePattern argument.
+		for (index in seq_len(nrow(plate_input))) {
+			raw_path <- as.character(plate_input$filepath[index])
+			if (!grepl("^(/|[A-Za-z]:[/\\])", raw_path)) {
+				raw_path <- file.path(plate_directory, raw_path)
+			}
+			results[[index]] <- extract_table(
+				path = raw_path,
+				experiment_id = as.character(plate_input$sample_name[index]),
+				plate_id = as.character(plate_input$plateID[index])
+			)
 		}
-		raw_path <- validate_file(raw_path, "plateInputFile filepath")
-		results[[index]] <- extract_table(
-			raw_path,
-			as.character(plate_input$sample_name[index]),
-			as.character(plate_input$plateID[index])
-		)
 	}
 
 	screen_data <- do.call(rbind, results)
