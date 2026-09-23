@@ -51,6 +51,17 @@ mod_data_preprocessing_ui <- function(id) {
 						),
 						selected = "none"
 					),
+					# Need to integrate into package later, current function does not offer support for this. 
+					# shiny::textInput(
+					# 	ns("edge_layers"),
+					# 	"Edge layers to discard",
+					# 	value = "0"
+					# ),
+					# shiny::textInput(
+					# 	ns("allow_missing"),
+					# 	"Allow missing values in control wells (TRUE/FALSE)",
+					# 	value = "FALSE"
+					# ),
 					shiny::uiOutput(ns("pos_neg_wells_ui")),
 					shiny::actionButton(ns("normalize"), "Normalize data")
 				)

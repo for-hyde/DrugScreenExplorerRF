@@ -1,6 +1,3 @@
-source(testthat::test_path("../../R/helper.R"))
-source(testthat::test_path("../../R/fitEdgeEffect.R"))
-
 edge_effect_fixture <- function(rows = 4L, columns = 4L) {
   grid <- expand.grid(
     plateID = "plate1",
