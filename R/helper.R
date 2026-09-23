@@ -124,10 +124,10 @@ fitOneSigmoid <- function(plate, response) {
 
 estimate_edge_effect <- function(plate, method = "loess", span = 1) {
     if (!is.data.frame(plate) ||
-        !all(c("wellID", "viab_norm") %in% names(plate))) {
-        stop("`plate` must contain `wellID` and `viab_norm`.", call. = FALSE)
+        !all(c("WellID", "viab_norm") %in% names(plate))) {
+        stop("`plate` must contain `WellID` and `viab_norm`.", call. = FALSE)
     }
-    coordinates <- parse_well_ids(plate$wellID)
+    coordinates <- parse_well_ids(plate$WellID)
     fitting_data <- data.frame(
         row_num = match(coordinates$x, LETTERS),
         col_num = suppressWarnings(as.numeric(coordinates$y))
@@ -144,9 +144,9 @@ estimate_edge_effect <- function(plate, method = "loess", span = 1) {
 
 # Used by the Shiny preprocessing module.
 load_from_zip <- function(zippath,
-                                                    separator = ",",
-                                                    wellfilename = "wellInput.csv",
-                                                    platefilename = "plateInput.csv") {
+                            separator = ",",
+                            wellfilename = "wellInput.csv",
+                            platefilename = "plateInput.csv") {
     if (!is.character(zippath) || length(zippath) != 1L || is.na(zippath) ||
             !file.exists(zippath) || dir.exists(zippath)) {
         stop("`zippath` must identify one existing ZIP file.", call. = FALSE)
@@ -204,8 +204,8 @@ load_from_zip <- function(zippath,
 #' 
 #' @param file_path Path to the CSV/TSV file.
 #' @param sep Separator character (e.g., ",", "\t", ";").
-#' @param row_range Character string representing row indices (e.g., "1:12").
-#' @param col_range Character string representing column range (e.g., "A:H" or "1:5").
+#' @param row_range Integer vector representing row range (e.g., 1:12). 
+#' @param col_range Integer vector representing column range (e.g., 1:5). 
 #' @return A subsetted data frame.
 manual_parse <- function(file_path, sep = ",", row_range = NULL, col_range = NULL) {
   
@@ -219,40 +219,73 @@ manual_parse <- function(file_path, sep = ",", row_range = NULL, col_range = NUL
     quote = ""
   )
   
-  # 2. Apply row range if provided and not empty
-  if (!is.null(row_range) && nzchar(row_range)) {
-    # Safely evaluate string like "1:12" into a numeric vector 1:12
-    rows <- suppressWarnings(tryCatch(eval(parse(text = row_range)), error = function(e) NULL))
-    if (!is.null(rows) && is.numeric(rows)) {
-      # Ensure indices don't exceed actual rows in the file
-      rows <- rows[rows <= nrow(df) & rows > 0]
-      df <- df[rows, , drop = FALSE]
-    }
+  # 2. Handle row indexing (default to all rows if NULL)
+  if (is.null(row_range)) {
+    row_range <- seq_len(nrow(df))
+  } else {
+    # Optional safety filter to prevent out-of-bounds errors
+    row_range <- row_range[row_range <= nrow(df) & row_range > 0]
   }
   
-  # 3. Apply column range if provided and not empty
-  if (!is.null(col_range) && nzchar(col_range)) {
-    cols <- NULL
-    
-    # Check if user entered Excel-style letters (e.g., "A:H" or "a:h")
-    if (grepl("^[A-Za-z]+:[A-Za-z]+$", col_range)) {
-      parts <- strsplit(toupper(col_range), ":")[[1]]
-      # Simple letter-to-index conversion (A=1, B=2, ..., Z=26)
-      col_start <- match(parts[1], LETTERS)
-      col_end <- match(parts[2], LETTERS)
-      if (!is.na(col_start) && !is.na(col_end)) {
-        cols <- col_start:col_end
-      }
-    } else {
-      # Otherwise assume a numeric range string like "1:5"
-      cols <- suppressWarnings(tryCatch(eval(parse(text = col_range)), error = function(e) NULL))
-    }
-    
-    if (!is.null(cols) && is.numeric(cols)) {
-      cols <- cols[cols <= ncol(df) & cols > 0]
-      df <- df[, cols, drop = FALSE]
-    }
+  # 3. Handle column indexing (default to all columns if NULL)
+  if (is.null(col_range)) {
+    col_range <- seq_len(ncol(df))
+  } else {
+    col_range <- col_range[col_range <= ncol(df) & col_range > 0]
   }
+  
+  # 4. Apply the position-based subsetting safely
+  df <- df[row_range, col_range, drop = FALSE]
   
   return(df)
 }
+
+
+#  #Add as function called in Shiny application to ensure Row and Column ranges are properly chosen.
+
+#   # If provided as a string, evaluate the row_range expression to get numeric indices
+#   if (row_range.typeof(row_range) == "character" && nzchar(row_range)) {
+#     row_range <- suppressWarnings(tryCatch(eval(parse(text = row_range)), error = function(e) NULL))
+#   }
+#   # If provided as a string, evaluate the col_range expression to get numeric indices
+#   if (typeof(col_range) == "character" && nzchar(col_range)) {
+#     col_range <- suppressWarnings(tryCatch(eval(parse(text = col_range)), error = function(e) NULL))
+#   }
+
+#   # 2. Apply row range if provided and not empty
+#   if (!is.null(row_range) && nzchar(row_range)) {
+#     # Safely evaluate string like "1:12" into a numeric vector 1:12
+#     rows <- suppressWarnings(tryCatch(eval(parse(text = row_range)), error = function(e) NULL))
+#     if (!is.null(rows) && is.numeric(rows)) {
+#       # Ensure indices don't exceed actual rows in the file
+#       rows <- rows[rows <= nrow(df) & rows > 0]
+#       df <- df[rows, , drop = FALSE]
+#     }
+#   }
+  
+#   # 3. Apply column range if provided and not empty
+#   if (!is.null(col_range) && nzchar(col_range)) {
+#     cols <- NULL
+    
+#     # Check if user entered Excel-style letters (e.g., "A:H" or "a:h")
+#     if (grepl("^[A-Za-z]+:[A-Za-z]+$", col_range)) {
+#       parts <- strsplit(toupper(col_range), ":")[[1]]
+#       # Simple letter-to-index conversion (A=1, B=2, ..., Z=26)
+#       col_start <- match(parts[1], LETTERS)
+#       col_end <- match(parts[2], LETTERS)
+#       if (!is.na(col_start) && !is.na(col_end)) {
+#         cols <- col_start:col_end
+#       }
+#     } else {
+#       # Otherwise assume a numeric range string like "1:5"
+#       cols <- suppressWarnings(tryCatch(eval(parse(text = col_range)), error = function(e) NULL))
+#     }
+    
+#     if (!is.null(cols) && is.numeric(cols)) {
+#       cols <- cols[cols <= ncol(df) & cols > 0]
+#       df <- df[, cols, drop = FALSE]
+#     }
+#   }
+  
+#   return(df)
+# }

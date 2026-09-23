@@ -21,7 +21,7 @@ normalizePlate <- function(screenData = NULL, method = NULL, posWell = NULL,
         stop("`screenData` must be a data frame or tibble.", call. = FALSE)
     }
 
-    missing_columns <- setdiff(c("experimentID", "plateID", "wellID", "raw_count", "drug1_name"), names(screenData))
+    missing_columns <- setdiff(c("experimentID", "plateID", "WellID", "raw_count", "drug1_name"), names(screenData))
     if (length(missing_columns) > 0L) {
         stop(
             paste0("`screenData` is missing required columns: ", paste(missing_columns, collapse = ", ")),

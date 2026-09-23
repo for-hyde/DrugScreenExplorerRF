@@ -251,7 +251,7 @@ readScreen <- function(wellInputFile, plateInputFile, negWell = NULL,
 			as.numeric(values)
 		}), use.names = FALSE)
 		data.frame(
-			wellID = well_ids,
+			WellID = well_ids,
 			experimentID = rep(experiment_id, length(well_ids)),
 			plateID = rep(plate_id, length(well_ids)),
 			raw_count = measurements,
@@ -305,7 +305,7 @@ readScreen <- function(wellInputFile, plateInputFile, negWell = NULL,
 			raw_path <- as.character(plate_input$filepath[index])
 			results[[index]] <- manual_parse(
 				file_path = raw_path,
-				cols = colRange, rows = rowRange, sep = sep
+				col_range = colRange, row_range = rowRange, sep = sep
 			)
 		}			
 	} else {#If not selected, automatically find the measurement tables in the files using the tablePattern argument.
@@ -324,12 +324,12 @@ readScreen <- function(wellInputFile, plateInputFile, negWell = NULL,
 
 	screen_data <- do.call(rbind, results)
 	screen_data <- cbind(
-		screen_data[c("wellID", "experimentID", "plateID", "raw_count")],
-		well_input[match(screen_data$wellID, well_ids),
+		screen_data[c("WellID", "experimentID", "plateID", "raw_count")],
+		well_input[match(screen_data$WellID, well_ids),
 			c("Drug1_name", "Drug1_concentration", "Drug2_name",
 			  "Drug2_concentration"), drop = FALSE]
 	)
-	names(screen_data) <- c("wellID", "experimentID", "plateID", "raw_count",
+	names(screen_data) <- c("WellID", "experimentID", "plateID", "raw_count",
 							"drug1_name", "drug1_concentration", "drug2_name",
 							"drug2_concentration")
 	if (!is.null(negWell) || !is.null(posWell)) {
