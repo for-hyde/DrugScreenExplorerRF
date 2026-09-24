@@ -12,11 +12,11 @@ makeReport <- function(screenData,
     if (!dir.exists(outputPath)) {
         stop(sprintf("`outputPath` must be a valid directory: %s", outputPath), call. = FALSE)
     }
-    
+
     # Check that edgeEffectEstimation is valid
     if (!edgeEffectEstimation %in% c("loess", "sigmoid")) {
         stop("`edgeEffectEstimation` must be one of 'loess' or 'sigmoid'.", call. = FALSE)
-    }  
+    }
 
     # Check that log10 is a logical value
     if (!is.logical(log10) || length(log10) != 1 || is.na(log10)) {
@@ -28,13 +28,15 @@ makeReport <- function(screenData,
         stop("`title` must be a single character string.", call. = FALSE)
     if (!is.character(author) || length(author) != 1 || is.na(author))
         stop("`author` must be a single character string.", call. = FALSE)
-    
+
     # create a directory for the report if it doesn't exist
     report_dir <- file.path(outputPath, "report")
     dir.create(report_dir, showWarnings = FALSE, recursive = TRUE)
 
+    #If save figures, create folder and save
+
     # load template file and save to report directory
-    tempRmd <- system.file("rmarkdown", "templates", "report_template", 
+    tempRmd <- system.file("rmarkdown", "templates", "report_template",
                 "skeleton", "skeleton.Rmd", package = "DrugScreenExplorerRF")
     file.copy(tempRmd, file.path(report_dir, "report.Rmd"), overwrite = TRUE)
 

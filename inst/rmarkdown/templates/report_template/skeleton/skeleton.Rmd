@@ -24,8 +24,8 @@ library(magrittr)
 ```
 
 # Data summary
+```{r, echo = FALSE}
 ## Table containing row counts, missing-value counts, mean, median, standard deviation.
-```{r}
 summary_stats <- params$screenData %>%
   group_by(experimentID) %>%
   summarise(
@@ -38,7 +38,7 @@ summary_stats <- params$screenData %>%
 kable(summary_stats, caption = "Summary Statistics by Experiment ID")
 ```
 ## Box plot of raw data values by plate
-```{r}
+```{r, echo = FALSE}
 
 df <- params$screenData
 df$y = as.factor(df$experimentID)
@@ -61,11 +61,54 @@ ggplot(df, aes(x = x, y = y)) +
   theme_bw()
 ```
 
-
 # Quality Control metrics
-## Z-prime Factor
-## Signal-to-background ratio for negative and positive controls
-## Coefficient of variation for negative and positive controls by plate
+## Z-prime Factor (requires positive and negative)
+```{r, echo = FALSE, results = "asis"}
+# Check if positive controls exist in the dataset
+has_pos_control <- "control" %in% names(params$screenData) &&
+                   any(params$screenData$control == "pos", na.rm = TRUE)
+
+if (has_pos_control) {
+  # Path 1: Positive controls exist -> Calculate all 4 metrics
+  metrics_df <- params$screenData %>%
+    filter(control %in% c("pos", "neg")) %>%
+    group_by(experimentID) %>%
+    summarise(
+      mean_pos = mean(raw_count[control == "pos"], na.rm = TRUE),
+      sd_pos   = sd(raw_count[control == "pos"], na.rm = TRUE),
+      mean_neg = mean(raw_count[control == "neg"], na.rm = TRUE),
+      sd_neg   = sd(raw_count[control == "neg"], na.rm = TRUE),
+      .groups  = "drop"
+    ) %>%
+    mutate(
+      z_prime  = 1 - (3 * (sd_pos + sd_neg)) / abs(mean_pos - mean_neg),
+      stb      = mean_pos / mean_neg,
+      cv_pos   = 100 * sd_pos / mean_pos,
+      cv_neg   = 100 * sd_neg / mean_neg
+    )
+
+  cat("### Assay Quality Metrics (Z-prime, Signal-to-Background, & CV)\n")
+  print(kable(metrics_df, caption = "Comprehensive Quality Metrics per Experiment"))
+
+} else {
+  # Path 2: No positive controls -> Calculate CV for negative controls only
+  metrics_df <- params$screenData %>%
+    filter(control == "neg") %>%
+    group_by(experimentID) %>%
+    summarise(
+      mean_neg = mean(raw_count, na.rm = TRUE),
+      sd_neg   = sd(raw_count, na.rm = TRUE),
+      .groups  = "drop"
+    ) %>%
+    mutate(
+      cv_neg = 100 * sd_neg / mean_neg
+    )
+
+  cat("### Assay Quality Metrics (Negative Control CV)\n")
+  cat("> *Note: Positive control wells ('pos') were not found in the dataset. Z-prime and Signal-to-Background require positive controls; showing Coefficient of Variation for negative controls only.*\n\n")
+  print(kable(metrics_df, caption = "Negative Control CV per Experiment"))
+}
+```
 
 # Spatial and plate-level visualizations
 ## normalized-value heatmaps
