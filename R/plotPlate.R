@@ -2,12 +2,13 @@
 #'
 #' This function generates visualizations of screening plate data, including heatmaps of viability, Z-scores, layout, and edge effects. It supports plotting multiple plates with optional facet wrapping and allows for saving the plots to disk.
 #' 
-#' @importFrom ggplot2 ggplot aes geom_tile scale_y_discrete xlab ylab
+#' @importFrom ggplot2 ggplot aes geom_tile scale_y_discrete facet_wrap xlab ylab
 #' @importFrom ggplot2 theme_void ggtitle theme element_text element_blank margin
 #' 
 #' @param screenData The data frame containing the screen data to be plotted. It must include columns for `experimentID`, `WellID`, and the relevant measurement (e.g., `viab_norm` for viability plots).
 #' @param plate A list of character vectors describing a subset of plates to plot.
 #' @param plotType A character string specifying the type of plot to generate.
+#'   Options include `"viability"`, `"zscore"`, `"layout"`, and `"edgeEffect"`.
 #' @param facetwrap A logical value indicating whether to use facet wrapping for multiple plates.
 #' @param outputPath A character string specifying the path to save the plots. If NULL, plots will not be saved to disk.
 #' @param ncol An integer specifying the number of columns in the facet wrap layout. Default is 2.
@@ -38,6 +39,13 @@ plotPlate <- function(
     # Validate inputs and prepare data for plotting.
     if (!is.data.frame(screenData)) {
         stop("`screenData` must be a data frame.", call. = FALSE)
+    }
+    if (!is.logical(facetwrap) || length(facetwrap) != 1L || is.na(facetwrap)) {
+        stop("`facetwrap` must be a single non-missing logical value.",
+             call. = FALSE)
+    }
+    if (!"WellID" %in% names(screenData)) {
+        stop("`screenData` must contain a `WellID` column.", call. = FALSE)
     }
     if (plate != "all" && !(plate %in% unique(screenData$experimentID))) {
         stop(sprintf("`plate` must be one of the experimentID values in `screenData`: %s",
@@ -70,42 +78,55 @@ plotPlate <- function(
 
     #Create Well ID info
     ids <- parse_well_ids(screenData$WellID)
-    screenData <- screenData %>%
+    screenData <- screenData |>
         dplyr::mutate(
             Row = ids$x,
             Column = ids$y
         )
 
-    #Slit into plates
-    plates <- screenData %>%
-        dplyr::filter(experimentID %in% plates_to_plot) %>%
-        dplyr::group_split(experimentID)
+    #Split into plates
+    selected_data <- screenData |>
+        dplyr::filter(experimentID %in% plates_to_plot) |>
+        dplyr::mutate(plate_label = experimentID)
 
-    plotlist <- vector("list", length(plates))
+    if (nrow(selected_data) == 0L) {
+        stop("No rows remain after filtering the requested plates.", call. = FALSE)
+    }
 
-    for (i in seq_along(plates)){
-        plate <- plates[[i]]
-        plate_id <- unique(plate$experimentID)
-
-        # Call helper function and attach the computed color data to the plate data
-        color <- get_color_data(plate, plotType)
-        plate$ColorData <- color$data
-
-        p <- ggplot(plate, aes(x = Column, y = Row, fill = ColorData)) +
+    plate_data_list <- dplyr::group_split(selected_data, plate_label)
+    plate_data_list <- lapply(plate_data_list, function(plate_data) {
+        plate_data$ColorData <- get_color_data(plate_data, plotType)$data
+        plate_data
+    })
+    selected_data <- dplyr::bind_rows(plate_data_list)
+    base_plot <- ggplot(selected_data, aes(x = Column, y = Row, fill = ColorData)) +
             geom_tile(color = "grey80") +
-            scale_y_discrete(limits = rev(levels(factor(plate$Row)))) + #Ensure A sits at top, may replace.
+            scale_y_discrete(limits = rev(levels(factor(selected_data$Row)))) +
             xlab("")  + ylab("") +
             theme_void() +
-            ggtitle(paste("Plate", plate_id, "-", plotType)) +
             theme(axis.text = element_text(size = 6),
                   axis.ticks = element_blank(),
                   plot.title = element_text(hjust = 0.5, size = 10),
                   plot.margin = margin(5, 5, 5, 5))
 
-        plotlist[[i]] <- p
-
-
+    if (facetwrap) {
+        return(base_plot +
+                   facet_wrap(~plate_label, ncol = ncol, nrow = nrow) +
+                   ggtitle(paste("Plates", plotType)))
     }
-    return (plotlist)
+
+    plates <- dplyr::group_split(selected_data, plate_label)
+    lapply(plates, function(plate_data) {
+        ggplot(plate_data, aes(x = Column, y = Row, fill = ColorData)) +
+            geom_tile(color = "grey80") +
+            scale_y_discrete(limits = rev(levels(factor(plate_data$Row)))) +
+            xlab("") + ylab("") +
+            theme_void() +
+            ggtitle(paste("Plate", unique(plate_data$plate_label), "-", plotType)) +
+            theme(axis.text = element_text(size = 6),
+                  axis.ticks = element_blank(),
+                  plot.title = element_text(hjust = 0.5, size = 10),
+                  plot.margin = margin(5, 5, 5, 5))
+    })
 }
 

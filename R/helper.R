@@ -160,11 +160,12 @@ fitOneSigmoid <- function(plate, response) {
 }
 
 estimate_edge_effect <- function(plate, method = "loess", span = 1) {
-    if (!is.data.frame(plate) ||
-        !all(c("WellID", "viab_norm") %in% names(plate))) {
-        stop("`plate` must contain `WellID` and `viab_norm`.", call. = FALSE)
+    if (!is.data.frame(plate) || !"viab_norm" %in% names(plate) ||
+        !any(c("wellID", "WellID") %in% names(plate))) {
+        stop("`plate` must contain `wellID` and `viab_norm`.", call. = FALSE)
     }
-    coordinates <- parse_well_ids(plate$WellID)
+    well_ids <- if ("wellID" %in% names(plate)) plate$wellID else plate$WellID
+    coordinates <- parse_well_ids(well_ids)
     fitting_data <- data.frame(
         row_num = match(coordinates$x, LETTERS),
         col_num = suppressWarnings(as.numeric(coordinates$y))

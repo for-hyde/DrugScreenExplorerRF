@@ -110,16 +110,136 @@ if (has_pos_control) {
 }
 ```
 
-# Spatial and plate-level visualizations
-## normalized-value heatmaps
-## edge-effect plots 
+# Spatial visualizations
+
 ## PCA (if possible)
-## variance-vs-mean rank plots (if possible)
+```{r, echo = FALSE}
+# 1. Reshape data: Wells become columns, experiments become rows
+pca_wide <- params$screenData %>%
+  select(experimentID, WellID, viab_norm) %>%
+  pivot_wider(names_from = WellID, values_from = viab_norm)
 
-## Adding an RMarkdown Template
+# 2. Extract metadata and prepare the numeric matrix for PCA
+# Note: standard PCA cannot handle missing (NA) values.
+# We keep track of valid experiments after dropping rows with NAs.
+valid_indices <- complete.cases(pca_wide %>% select(-experimentID))
+pca_matrix <- pca_wide[valid_indices, ] %>% select(-experimentID)
+valid_experiments <- pca_wide$experimentID[valid_indices]
 
-This file is what a user will see when they select your template. Make sure that you update the fields in the yaml header. In particular you will want to update the `output` field to whatever format your template requires.
+if (nrow(pca_matrix) > 2) {
+  # 3. Run PCA (scaling is important since well values can have variance differences)
+  pca_res <- prcomp(pca_matrix, scale. = TRUE)
+  
+  # 4. Extract PC1 and PC2 coordinates for plotting
+  pca_df <- data.frame(
+    experimentID = valid_experiments,
+    PC1 = pca_res$x[, 1],
+    PC2 = pca_res$x[, 2]
+  )
+  
+  # Calculate variance explained percentages for axis labels
+  var_explained <- summary(pca_res)$importance[2, 1:2] * 100
+  
+  # 5. Plot using ggplot2
+  p_pca <- ggplot(pca_df, aes(x = PC1, y = PC2, label = experimentID)) +
+    geom_point(size = 3, color = "darkorange") +
+    geom_text(vjust = -1.2, size = 3.5, check_overlap = TRUE) +
+    labs(
+      title = "PCA of Plate/Experiment Profiles",
+      x = paste0("PC1 (", round(var_explained[1], 1), "%)"),
+      y = paste0("PC2 (", round(var_explained[2], 1), "%)")
+    ) +
+    theme_bw()
+  
+  print(p_pca)
+  
+} else {
+  cat("> *Note: Not enough complete cases (non-missing rows) across the well layout to perform PCA.*\n")
+}
+```
 
-This is a good place to demonstrate special features that your template provides. Ideally it should knit out-of-the-box, or at least contain clear instructions as to what needs changing.
+## Mean variance vs Rank
 
-Finally, be sure to remove this message!
+```{r, echo=FALSE, fig.width=10, fig.height=8, warning=FALSE, message=FALSE}
+library(dplyr)
+library(ggplot2)
+library(gridExtra)
+
+# 1. Per-Plate Variance/SD vs Mean Rank (using raw_count)
+perPlateVar <- params$screenData %>%
+  mutate(log10Val = log10(raw_count)) %>% 
+  group_by(experimentID) %>% 
+  summarise(
+    meanRaw = mean(raw_count, na.rm = TRUE), 
+    sdRaw   = sd(raw_count, na.rm = TRUE),
+    meanLog = mean(log10Val, na.rm = TRUE), 
+    sdLog   = sd(log10Val, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+customTheme <- theme_bw() + theme(plot.title = element_text(hjust = 0.5, face = "bold"))
+
+p1 <- perPlateVar %>% 
+  arrange(meanRaw) %>% 
+  mutate(rank = row_number()) %>%
+  ggplot(aes(x = rank, y = sdRaw)) + 
+  geom_point(color = "royalblue", alpha = 0.8) + 
+  xlab("Rank (Mean)") + ylab("Standard Deviation") +
+  ggtitle("Per-Plate (Raw)") + customTheme
+
+p2 <- perPlateVar %>% 
+  arrange(meanLog) %>% 
+  mutate(rank = row_number()) %>%
+  ggplot(aes(x = rank, y = sdLog)) + 
+  geom_point(color = "royalblue", alpha = 0.8) + 
+  xlab("Rank (Mean)") + ylab("Standard Deviation") +
+  ggtitle("Per-Plate (Log10 Scale)") + customTheme
+
+# 2. Per-Well Variance/SD vs Mean Rank (using raw_count)
+perWellVar <- params$screenData %>%
+  mutate(log10Val = log10(raw_count)) %>% 
+  group_by(WellID) %>%
+  summarise(
+    meanRaw = mean(raw_count, na.rm = TRUE), 
+    sdRaw   = sd(raw_count, na.rm = TRUE),
+    meanLog = mean(log10Val, na.rm = TRUE), 
+    sdLog   = sd(log10Val, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p3 <- perWellVar %>% 
+  arrange(meanRaw) %>% 
+  mutate(rank = row_number()) %>%
+  ggplot(aes(x = rank, y = sdRaw)) + 
+  geom_point(color = "firebrick", alpha = 0.8) + 
+  xlab("Rank (Mean)") + ylab("Standard Deviation") +
+  ggtitle("Per-Well (Raw)") + customTheme
+
+p4 <- perWellVar %>% 
+  arrange(meanLog) %>% 
+  mutate(rank = row_number()) %>%
+  ggplot(aes(x = rank, y = sdLog)) + 
+  geom_point(color = "firebrick", alpha = 0.8) + 
+  xlab("Rank (Mean)") + ylab("Standard Deviation") +
+  ggtitle("Per-Well (Log10 Scale)") + customTheme
+
+# 3. Arrange into a 2x2 grid
+grid.arrange(p1, p2, p3, p4, ncol = 2)
+```
+
+# Plate visualizations
+## normalized-value heatmaps
+```{r, echo = FALSE}
+plotPlate(params$screenData, 
+          plotType = "zscore", 
+          facetwrap = FALSE)
+
+```
+## edge-effect plots 
+```{r, echo = FALSE}
+plotPlate(params$screenData, 
+          plotType = "edgeEffect", 
+          facetwrap = FALSE)
+```
+
+
