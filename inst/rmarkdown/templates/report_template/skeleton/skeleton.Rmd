@@ -1,0 +1,80 @@
+---
+title: "`r params$title`"
+author: "`r params$author`"
+date: "`r Sys.Date()`"
+output: html_document
+params:
+    title: "QC Report"
+    author: "Your Name"
+    screenData: !R NULL 
+    log10: TRUE
+    edgeEffectEstimation: "loess"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+# Load libraries
+library(knitr)
+library(dplyr)
+library(ggplot2)
+library(magrittr)
+
+```
+
+# Data summary
+## Table containing row counts, missing-value counts, mean, median, standard deviation.
+```{r}
+summary_stats <- params$screenData %>%
+  group_by(experimentID) %>%
+  summarise(
+    row_count     = n(),
+    missing_count = sum(is.na(viab_norm)),
+    mean_viab     = mean(viab_norm, na.rm = TRUE),
+    median_viab   = median(viab_norm, na.rm = TRUE),
+    sd_viab       = sd(viab_norm, na.rm = TRUE)
+  )
+kable(summary_stats, caption = "Summary Statistics by Experiment ID")
+```
+## Box plot of raw data values by plate
+```{r}
+
+df <- params$screenData
+df$y = as.factor(df$experimentID)
+#if log10, adjust x
+if (!params$log10) {
+    df$x <- df$raw_count
+    xlab <- "Raw Count"
+} else {
+    df$x <- log(df$raw_count, base = 10)
+    xlab <- "Raw Count (scaled by log10)"
+}
+
+ggplot(df, aes(x = x, y = y)) +
+  geom_boxplot(fill = "royalblue", alpha = 0.7) +
+  labs(
+    title = "Raw Count Distribution by Experiment",
+    x = xlab,
+    y = "Experiment ID"
+  ) +
+  theme_bw()
+```
+
+
+# Quality Control metrics
+## Z-prime Factor
+## Signal-to-background ratio for negative and positive controls
+## Coefficient of variation for negative and positive controls by plate
+
+# Spatial and plate-level visualizations
+## normalized-value heatmaps
+## edge-effect plots 
+## PCA (if possible)
+## variance-vs-mean rank plots (if possible)
+
+## Adding an RMarkdown Template
+
+This file is what a user will see when they select your template. Make sure that you update the fields in the yaml header. In particular you will want to update the `output` field to whatever format your template requires.
+
+This is a good place to demonstrate special features that your template provides. Ideally it should knit out-of-the-box, or at least contain clear instructions as to what needs changing.
+
+Finally, be sure to remove this message!

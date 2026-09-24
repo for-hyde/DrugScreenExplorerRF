@@ -1,0 +1,4 @@
+name: report_template
+description: >
+   A template for generating the QC report from `makeReport()`
+create_dir: FALSE

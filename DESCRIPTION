@@ -18,4 +18,5 @@ Imports:
     dplyr,
     DT,
     ggplot2,
+    knitr,
     shiny
