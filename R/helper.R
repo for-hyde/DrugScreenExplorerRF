@@ -1,3 +1,40 @@
+# Function to check that screenData is in the proper format
+check_screen_data_format <- function(screenData,
+                                     normalized = FALSE,
+                                     edge_effect = FALSE) {
+    # Check that screenData is a data frame or tibble
+    if (!is.data.frame(screenData) || nrow(screenData) == 0L) {
+        stop("`screenData` must be a non-empty data frame or tibble.",
+             call. = FALSE)
+    }
+    # Check for required columns based on the context
+    required_columns <- c("experimentID", "plateID", "WellID", "raw_count")
+    if (normalized) {
+        required_columns <- c(required_columns, "viab_norm")
+    } else if (edge_effect) {
+        required_columns <- c(required_columns, "edgeFactor")
+    }
+    missing_columns <- setdiff(required_columns, names(screenData))
+    if (length(missing_columns) > 0L) {
+        stop(sprintf("`screenData` is missing required columns: %s",
+                     paste(missing_columns, collapse = ", ")), call. = FALSE)
+    }
+
+    if (!is.numeric(screenData$raw_count)) {
+        stop("`screenData$raw_count` must be numeric.", call. = FALSE)
+    }
+    if (normalized && !is.numeric(screenData$viab_norm)) {
+        stop("`screenData$viab_norm` must be numeric when `normalized = TRUE`.",
+             call. = FALSE)
+    }
+    if (edge_effect && !is.numeric(screenData$edgeFactor)) {
+        stop("`screenData$edgeFactor` must be numeric when `edge_effect = TRUE`.",
+             call. = FALSE)
+    }
+
+
+}
+
 # Helper function called in printPlate that takes the well IDs and splits them into rows and columns.
 parse_well_ids <- function(well_ids) {
     if (!is.character(well_ids)) {
@@ -28,7 +65,7 @@ calculate_zscore <- function(plate) {
     return(z_score)
 }
 
-#Function to determining which colors to run in
+#Function to determining which colors to run in plotting functions. 
 get_color_data <- function(plate, plotType){
     switch(
         plotType,

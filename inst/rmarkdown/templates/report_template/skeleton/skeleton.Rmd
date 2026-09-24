@@ -4,11 +4,13 @@ author: "`r params$author`"
 date: "`r Sys.Date()`"
 output: html_document
 params:
+    screenData: !R NULL
+    edgeEffectEstimation: "loess"
     title: "QC Report"
     author: "Your Name"
-    screenData: !R NULL 
+    output_dir: "." 
     log10: TRUE
-    edgeEffectEstimation: "loess"
+
 ---
 
 ```{r setup, include=FALSE}
