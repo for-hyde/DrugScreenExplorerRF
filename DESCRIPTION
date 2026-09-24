@@ -5,7 +5,7 @@ Authors@R:
     person("Forrest", "Hyde", , "forrest.hyde@stud.uni-heidelberg.de", role = c("aut", "cre"))
 Description: The package is designed for the analysis of Ex-Vivo Drug Screening data
   The package features both tools to use in Rstudio, or a Shiny Application to 
-  enhance analysis with 
+  enhance analysis by streamlining the analysis. 
 License: GPL (>= 3)
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)

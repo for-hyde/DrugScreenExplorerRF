@@ -1,6 +1,28 @@
+#' Plot Screening Plate Data
+#'
+#' This function generates visualizations of screening plate data, including heatmaps of viability, Z-scores, layout, and edge effects. It supports plotting multiple plates with optional facet wrapping and allows for saving the plots to disk.
+#' 
 #' @importFrom ggplot2 ggplot aes geom_tile scale_y_discrete xlab ylab
 #' @importFrom ggplot2 theme_void ggtitle theme element_text element_blank margin
-
+#' 
+#' @param screenData The data frame containing the screen data to be plotted. It must include columns for `experimentID`, `WellID`, and the relevant measurement (e.g., `viab_norm` for viability plots).
+#' @param plate A list of character vectors describing a subset of plates to plot.
+#' @param plotType A character string specifying the type of plot to generate.
+#' @param facetwrap A logical value indicating whether to use facet wrapping for multiple plates.
+#' @param outputPath A character string specifying the path to save the plots. If NULL, plots will not be saved to disk.
+#' @param ncol An integer specifying the number of columns in the facet wrap layout. Default is 2.
+#' @param nrow An integer specifying the number of rows in the facet wrap layout. Default is 3.
+#' @param width A numeric value specifying the width of the output plot in inches. Default is 16.
+#' @param height A numeric value specifying the height of the output plot in inches. Default is 16.
+#' @param returnObject A logical value indicating whether to return the plot object instead of displaying it.
+#' @return A list of ggplot objects representing the generated plots.
+#' @examples
+#' \dontrun{
+#' # Example usage of plotPlate function
+#' screenData <- readScreen("wellInput.csv", "plateInput.csv")
+#' plotPlate(screenData, plate = "all", plotType = "viability", facetwrap = TRUE, outputPath = "plots", ncol = 2, nrow = 3, width = 16, height = 16, returnObject = FALSE)
+#' }
+#' @export  
 plotPlate <- function(
         screenData,
         plate = "all",
@@ -32,7 +54,7 @@ plotPlate <- function(
     if (plotType == "zscore" && !("viab_norm" %in% names(screenData))) {
         stop("`screenData` must contain a `viab.norm` column when `plotType` is 'zscore'.", call. = FALSE)
     }
-    #If not a null path, 
+    #If not a null path,
     if (!is.null(outputPath) && (dirname(outputPath) != "." && !is.dir(outputPath))) {
         stop(sprintf("`outputPath` must be a valid directory: %s", outputPath), call. = FALSE)
     }
@@ -47,7 +69,7 @@ plotPlate <- function(
     plotlist <- list()
 
     #Create Well ID info
-    ids <- parse_well_ids(screenData$wellID)
+    ids <- parse_well_ids(screenData$WellID)
     screenData <- screenData %>%
         dplyr::mutate(
             Row = ids$x,
@@ -82,7 +104,7 @@ plotPlate <- function(
 
         plotlist[[i]] <- p
 
-    
+
     }
     return (plotlist)
 }

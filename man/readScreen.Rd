@@ -10,6 +10,7 @@ readScreen(
   negWell = NULL,
   posWell = NULL,
   rowRange = NULL,
+  colRange = NULL,
   sep = ",",
   tablePattern = NULL
 )
@@ -27,6 +28,9 @@ names.}
 
 \item{rowRange}{Optional integer vector \code{c(first_row, last_row)} specifying
 the inclusive lines containing the measurement table.}
+
+\item{colRange}{Optional integer vector \code{c(first_column, last_column)} specifying
+the inclusive columns containing the measurement table.}
 
 \item{sep}{Field separator used by the raw plate-reader files. Defaults to
 \code{","}.}
